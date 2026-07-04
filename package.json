@@ -1,0 +1,11 @@
+{
+  "name": "4forcedeveloperskenya-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test:keyboard": "node tests/keyboard.js"
+  },
+  "dependencies": {
+    "puppeteer": "^20.8.0"
+  }
+}

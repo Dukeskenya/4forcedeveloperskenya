@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========== KEYBOARD NAVIGATION ==========
-  // keyboard: Escape closes overlays (already handled earlier) and add arrows for nav
+  // keyboard: Escape closes overlays and Arrow keys navigate top-level links
   document.addEventListener('keydown', (e) => {
     // Escape: close mobile overlay and any open mega menus
     if (e.key === 'Escape') {
@@ -484,42 +484,51 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.nav-links li.has-mega.open').forEach(p => {
         p.classList.remove('open');
         const link = p.querySelector('a');
-        if (link) link.setAttribute('aria-expanded', 'false');
         const panel = p.querySelector('.mega-menu');
+        if (link) link.setAttribute('aria-expanded', 'false');
         if (panel) panel.setAttribute('aria-hidden', 'true');
       });
       return;
     }
 
-    // Arrow key navigation for top-level items when focus is inside the nav
+    if (!navLinks) return;
+
+    // compute top-level links from the primary nav only
+    const topLevelLinks = Array.from(navLinks.querySelectorAll(':scope > li > a'));
+    // ensure top-level links are focusable
+    topLevelLinks.forEach(a => { if (!a.hasAttribute('tabindex')) a.setAttribute('tabindex', '0'); });
+
     const activeEl = document.activeElement;
     if (!activeEl) return;
-    const topLevelLinks = Array.from(document.querySelectorAll('.nav-links > li > a'));
-    const currentIndex = topLevelLinks.indexOf(activeEl);
+    // only handle keys when focus is inside the primary nav
+    if (!navLinks.contains(activeEl)) return;
 
-    if (currentIndex !== -1) {
-      if (e.key === 'ArrowRight') {
+    const currentIndex = topLevelLinks.indexOf(activeEl);
+    if (currentIndex === -1) return;
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = topLevelLinks[(currentIndex + 1) % topLevelLinks.length];
+      if (next) next.focus();
+    }
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const prev = topLevelLinks[(currentIndex - 1 + topLevelLinks.length) % topLevelLinks.length];
+      if (prev) prev.focus();
+    }
+
+    if (e.key === 'ArrowDown') {
+      const parent = activeEl.closest('li.has-mega');
+      if (parent) {
         e.preventDefault();
-        const next = topLevelLinks[(currentIndex + 1) % topLevelLinks.length];
-        next.focus();
-      }
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        const prev = topLevelLinks[(currentIndex - 1 + topLevelLinks.length) % topLevelLinks.length];
-        prev.focus();
-      }
-      if (e.key === 'ArrowDown') {
-        const parent = activeEl.closest('li.has-mega');
-        if (parent) {
-          e.preventDefault();
-          parent.classList.add('open');
-          const panel = parent.querySelector('.mega-menu');
-          if (panel) {
-            panel.setAttribute('aria-hidden', 'false');
-            activeEl.setAttribute('aria-expanded', 'true');
-            const first = panel.querySelector('a');
-            if (first) first.focus();
-          }
+        parent.classList.add('open');
+        const panel = parent.querySelector('.mega-menu');
+        if (panel) {
+          panel.setAttribute('aria-hidden', 'false');
+          activeEl.setAttribute('aria-expanded', 'true');
+          const first = panel.querySelector('a');
+          if (first) first.focus();
         }
       }
     }
