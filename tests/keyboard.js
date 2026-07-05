@@ -3,33 +3,45 @@ const puppeteer = require('puppeteer');
 (async () => {
   const url = process.env.URL || 'http://127.0.0.1:8000/';
   console.log('Testing URL:', url);
-  const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
+  await page.setViewport({ width: 1440, height: 900 });
   page.on('console', msg => console.log('PAGE:', msg.text()));
   await page.goto(url, { waitUntil: 'networkidle2' });
 
   await page.waitForSelector('#primary-navigation');
 
-  // Focus first top-level link
-  await page.evaluate(() => {
-    const first = document.querySelector('.nav-links > li > a');
-    if (first) first.focus();
-  });
+  // Use Tab order to land on the first focusable nav item, then verify the handler from there.
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
   await page.waitForTimeout(150);
-  const initial = await page.evaluate(() => document.activeElement && document.activeElement.textContent.trim());
-  console.log('initial-focus:', initial);
+  const initial = await page.evaluate(() => ({
+    tag: document.activeElement && document.activeElement.tagName,
+    text: document.activeElement && document.activeElement.textContent.trim(),
+    href: document.activeElement && document.activeElement.getAttribute('href')
+  }));
+  console.log('initial-focus:', JSON.stringify(initial));
 
-  // ArrowRight -> move focus
+  // ArrowRight -> move focus to the next nav link
   await page.keyboard.press('ArrowRight');
   await page.waitForTimeout(150);
-  const afterRight = await page.evaluate(() => document.activeElement && document.activeElement.textContent.trim());
-  console.log('after-arrow-right:', afterRight);
+  const afterRight = await page.evaluate(() => ({
+    tag: document.activeElement && document.activeElement.tagName,
+    text: document.activeElement && document.activeElement.textContent.trim(),
+    href: document.activeElement && document.activeElement.getAttribute('href')
+  }));
+  console.log('after-arrow-right:', JSON.stringify(afterRight));
 
   // ArrowLeft -> back
   await page.keyboard.press('ArrowLeft');
   await page.waitForTimeout(150);
-  const afterLeft = await page.evaluate(() => document.activeElement && document.activeElement.textContent.trim());
-  console.log('after-arrow-left:', afterLeft);
+  const afterLeft = await page.evaluate(() => ({
+    tag: document.activeElement && document.activeElement.tagName,
+    text: document.activeElement && document.activeElement.textContent.trim(),
+    href: document.activeElement && document.activeElement.getAttribute('href')
+  }));
+  console.log('after-arrow-left:', JSON.stringify(afterLeft));
 
   // Focus Services and ArrowDown to open mega
   await page.evaluate(() => {
@@ -74,7 +86,7 @@ const puppeteer = require('puppeteer');
 
   await browser.close();
 
-  const pass = afterRight && afterRight !== initial && megaOpen && megaOpen.openClass && (megaOpen.panelHidden === 'false' || megaOpen.ariaExpanded === 'true');
+  const pass = afterRight && afterRight.tag && afterRight.text && initial.text && afterRight.text !== initial.text && megaOpen && megaOpen.openClass && (megaOpen.panelHidden === 'false' || megaOpen.ariaExpanded === 'true');
   if (!pass) {
     console.error('Keyboard checks failed');
     process.exit(2);
